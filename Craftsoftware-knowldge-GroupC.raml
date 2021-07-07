@@ -1,0 +1,35 @@
+#%RAML 1.0
+title: phone_verify
+/user:
+ get:
+    queryParameters:
+      phone:
+        type: string
+    responses:
+      200:
+        body:
+          application/json:
+            type: !include ./data_type/dataType.raml
+            example: !include ./Example/example.raml
+    
+      400:
+        body:
+          application/json:
+            example:
+               {
+                  "msg": "bad request"
+               }      
+      401:
+        body:
+          application/json:
+            example:
+              {
+                 "msg": "Unauthorized"
+              }
+      500:
+        body:
+          application/json:
+            example:
+              {
+                 "msg": "Server error"
+              }
