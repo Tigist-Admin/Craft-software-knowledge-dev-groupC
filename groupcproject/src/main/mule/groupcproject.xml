@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="b66ae5b6-f58a-48d2-a866-7d5446b6621f" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="f88e4acb-af3b-4d55-ad64-4f8168ee5984" />
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="321303b9-c3fd-4078-aa6a-89513587b06b" basePath="/api" >
+		<http:request-connection host="apilayer.net" port="80" />
+	</http:request-config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="d7811ad2-97a5-4764-8e1a-feeda45cb8b9" >
+		<file:connection workingDir="C:\Users\tigis\Documents\error_phone" />
+	</file:config>
+	<flow name="groupcprojectFlow" doc:id="dd9084fd-87dd-4cb3-ad38-6dffe7bb1ae3" >
+		<http:listener doc:name="Listener" doc:id="69875187-abf2-4700-97f6-b597ebb9f85c" config-ref="HTTP_Listener_config" path="/groupc"/>
+		<logger level="INFO" doc:name="Logger" doc:id="7bee8707-1446-40f9-b83d-6e4f08da1aeb" message="Phone validation started"/>
+		<try doc:name="Try" doc:id="6c6cac67-bbe4-4656-a087-fcf0cac5f3cd" >
+			<validation:matches-regex doc:name="Matches regex" doc:id="5bd6241f-a941-4f8f-98e4-16edebe6dcd4" config-ref="Validation_Config" value="#[attributes.queryParams.phone]" regex="^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="c5951885-6e8f-4677-aa90-18b4cf41036b" type="ANY">
+					<logger level="INFO" doc:name="Logger" doc:id="6d61d672-e330-4b79-9a98-85bbfc025aed" message="Invalid phone format"/>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<http:request method="GET" doc:name="Request" doc:id="f4f84610-0557-42ef-b175-d5f247e745bd" config-ref="HTTP_Request_configuration" path="/validate">
+			<reconnect />
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	number : attributes.queryParams.phone,
+	access_key: "773b093271224505d402677e0d752a60"
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="a18874b0-553f-42c3-bfc1-8af83f69dc9b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="customers" ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="f67f9622-e793-40ca-a427-c0341dd5f654" message="Phone validation completed"/>
+		<choice doc:name="Choice" doc:id="ea601efc-acd0-4795-8c4a-6418ae6629c5" >
+			<when expression="#[payload.valid == true]">
+				<db:insert doc:name="Insert" doc:id="1564a6e5-91d8-486a-bf62-3e67cd26c40f" />
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Logger" doc:id="e482462d-e822-48b6-877d-a9409b162ffd" message="Invalid phone number"/>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
